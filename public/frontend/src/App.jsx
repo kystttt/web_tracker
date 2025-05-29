@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-    BrowserRouter as Router,
-    Route,
-    Routes,
-    Link,
-    useParams,
-    useNavigate,
-} from "react-router-dom";
+import { Link, useParams, useNavigate, BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import pdfMake from "pdfmake/build/pdfmake";
 import { vfs } from "pdfmake/build/vfs_fonts";
 
 pdfMake.vfs = vfs;
 
 const API_BASE = "http://localhost:3001/api";
+
 const last21Days = Array.from({ length: 21 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (20 - i));
@@ -21,18 +15,7 @@ const last21Days = Array.from({ length: 21 }, (_, i) => {
 
 function Home() {
     return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "100vh",
-                margin: 0,
-                padding: 1000,
-                boxSizing: "border-box"
-            }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100vh" }}>
             <h1>Трекер привычек</h1>
             <Link to="/habits">Перейти к привычкам</Link>
         </div>
@@ -42,16 +25,16 @@ function Home() {
 function HabitPage({ onUpdate }) {
     const { name } = useParams();
     const navigate = useNavigate();
+
     const markToday = async () => {
         await fetch(`${API_BASE}/habits/${encodeURIComponent(name)}`, { method: "POST" });
         onUpdate();
     };
+
     return (
         <div style={{ padding: 20 }}>
             <h2>Привычка: {name}</h2>
-            <button onClick={markToday} style={{ marginBottom: 20 }}>
-                Отметить за сегодня
-            </button>
+            <button onClick={markToday} style={{ marginBottom: 20 }}>Отметить за сегодня</button>
             <br />
             <button onClick={() => navigate("/habits")}>Назад</button>
         </div>
@@ -131,6 +114,50 @@ function HabitsList() {
         pdfMake.createPdf(docDefinition).download("habits_tracker.pdf");
     };
 
+    const printPDF = () => {
+        const headerRow = [
+            { text: "Привычка / Дата", bold: true },
+            ...last21Days.map((d) => ({ text: `${d.slice(8)}.${d.slice(5, 7)}`, bold: true })),
+        ];
+
+        const body = [headerRow];
+        Object.entries(habits).forEach(([name, dates]) => {
+            const row = [{ text: name }];
+            last21Days.forEach((d) => row.push({ text: dates.includes(d) ? "+" : "" }));
+            body.push(row);
+        });
+        if (body.length === 1) {
+            body.push([
+                { text: "Нет привычек, добавьте новую!", colSpan: 22, alignment: "center" },
+                ...Array(21).fill({}),
+            ]);
+        }
+
+        const docDefinition = {
+            pageOrientation: 'landscape',
+            pageSize: 'A4',
+            content: [
+                { text: "Трекер привычек", style: "header" },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['auto', ...Array(21).fill('*')],
+                        body,
+                    },
+                },
+            ],
+            defaultStyle: {
+                font: "Roboto",
+                fontSize: 8,
+            },
+            styles: {
+                header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
+            },
+        };
+
+        pdfMake.createPdf(docDefinition).print();
+    };
+
     return (
         <div style={{ padding: 20, textAlign: "center" }}>
             <h2>Мои привычки</h2>
@@ -145,6 +172,9 @@ function HabitsList() {
                 <button onClick={addHabit}>Добавить</button>
                 <button onClick={downloadPDF} style={{ marginLeft: 10 }}>
                     Скачать PDF
+                </button>
+                <button onClick={printPDF} style={{ marginLeft: 10 }}>
+                    Печать PDF
                 </button>
             </div>
 
